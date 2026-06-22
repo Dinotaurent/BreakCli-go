@@ -1,0 +1,50 @@
+# ------------------------------------------------------------------------------
+# CORE: SEGURIDAD, IDEs Y SISTEMA (SIEMPRE INCLUIR)
+# ------------------------------------------------------------------------------
+# Secretos y Entorno
+.env
+.env.*
+config/secrets.json
+
+# JetBrains (GoLand, DataGrip, etc.)
+.idea/
+/queries/
+/dataSources/
+breakcli
+
+# VS Code y Otros
+.vscode/
+*.swp
+*.bak
+
+# Sistema Operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ------------------------------------------------------------------------------
+# GO: MICROSERVICIOS Y BACKEND
+# ------------------------------------------------------------------------------
+# Binarios compilados
+bin/
+out/
+obj/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Desarrollo y Cobertura
+*.test
+*.out
+coverage.txt
+vendor/
+
+# ------------------------------------------------------------------------------
+# LOGS Y TEMPORALES
+# ------------------------------------------------------------------------------
+*.log
+logs/
+temp/
+tmp/
