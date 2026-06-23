@@ -1,6 +1,3 @@
-// breakcli - Recordador interactivo de descansos visuales y de movimiento.
-// Uso: ./breakcli (Linux) | breakcli.exe (Windows)
-// Presiona Ctrl+C para salir.
 package main
 
 import (
@@ -19,8 +16,8 @@ import (
 // ─── Configuración ────────────────────────────────────────────────────────────
 
 const (
-	workInterval  = 1 * time.Minute
-	breakDuration = 30 * time.Second
+	workInterval  = 30 * time.Minute
+	breakDuration = 3 * time.Minute
 	promptTimeout = 30 * time.Second
 	clearEvery    = 3
 )
@@ -38,8 +35,26 @@ var alertSound2 []byte
 var (
 	stdinReader    = bufio.NewReader(os.Stdin)
 	breaksComplete = 0
-	sessionStart   = time.Now() // ← NUEVO
+	sessionStart   = time.Now()
+	inputCh        = make(chan string, 1) // ← canal persistente de stdin
 )
+
+// ─── Goroutine persistente de stdin ──────────────────────────────────────────
+//
+// Una sola goroutine lee stdin continuamente.
+// Evita que múltiples goroutines compitan por la misma entrada.
+func init() {
+	go func() {
+		for {
+			text, err := stdinReader.ReadString('\n')
+			if err != nil {
+				inputCh <- ""
+				return
+			}
+			inputCh <- strings.TrimSpace(strings.ToLower(text))
+		}
+	}()
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -95,9 +110,21 @@ func sessionStats() string {
 // ─── Bucle principal ──────────────────────────────────────────────────────────
 
 func runBreakLoop() {
-	ticker := time.NewTicker(workInterval)
-	defer ticker.Stop()
-	for range ticker.C {
+	last := time.Now()
+	for {
+		time.Sleep(workInterval)
+
+		elapsed := time.Since(last)
+		last = time.Now()
+
+		// Si el tiempo real es más del doble del intervalo,
+		// el PC estuvo suspendido → saltar este ciclo.
+		if elapsed > workInterval*2 {
+			logf("💤 PC retomado tras suspensión. Reiniciando temporizador...")
+			fmt.Println()
+			continue
+		}
+
 		doBreak()
 	}
 }
@@ -120,12 +147,12 @@ func doBreak() {
 
 	runBreakCountdown(breakDuration)
 
-	breaksComplete++ // ← incrementar ANTES de stats
+	breaksComplete++
 
 	fmt.Println()
 	logf("✅ Fin del descanso VISUAL y de MOVIMIENTO. ¡Vuelve al trabajo! 💪")
 	fmt.Println()
-	fmt.Println(sessionStats()) // ← NUEVO
+	fmt.Println(sessionStats())
 	fmt.Println()
 
 	playSound("alert2.wav")
@@ -147,18 +174,8 @@ func askBreak() bool {
 	fmt.Printf("[%s] ¿Deseas tomar el descanso ahora? [s/n] (auto en %ds): ",
 		now(), int(promptTimeout.Seconds()))
 
-	ch := make(chan string, 1)
-	go func() {
-		text, err := stdinReader.ReadString('\n')
-		if err != nil {
-			ch <- ""
-			return
-		}
-		ch <- strings.TrimSpace(strings.ToLower(text))
-	}()
-
 	select {
-	case ans := <-ch:
+	case ans := <-inputCh: // ← usa el canal persistente
 		fmt.Println()
 		switch ans {
 		case "n", "no":
